@@ -19,7 +19,7 @@ fn in_par_get_set_cancellation() {
             let v1 = db.knobs().sum_signal_on_entry.with_value(1, || {
                 db.knobs()
                     .sum_await_cancellation
-                    .with_value(true, || db.sum("abc"))
+                    .with_value(true, || db.sum2("abc"))
             });
 
             // check that we observed cancellation
@@ -32,7 +32,7 @@ fn in_par_get_set_cancellation() {
             // Now when we read we should get the correct sums. Note
             // in particular that we re-compute the sum of `"abc"`
             // even though none of our inputs have changed.
-            let v2 = db.sum("abc");
+            let v2 = db.sum2("abc");
             (v1, v2)
         }
     });
