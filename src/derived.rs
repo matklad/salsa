@@ -286,7 +286,7 @@ where
         // else from running `read_upgrade` at the same time.)
         let mut old_memo = match self.probe(
             db,
-            self.map.upgradable_read(),
+            self.map.upgradable_read(), // thrad 20, 17, 14
             runtime,
             revision_now,
             descriptor,
@@ -294,7 +294,7 @@ where
         ) {
             ProbeState::UpToDate(v) => return v,
             ProbeState::StaleOrAbsent(map) => {
-                let mut map = RwLockUpgradableReadGuard::upgrade(map);
+                let mut map = RwLockUpgradableReadGuard::upgrade(map); // thread 16
                 match map.insert(key.clone(), QueryState::in_progress(runtime.id())) {
                     Some(QueryState::Memoized(old_memo)) => Some(old_memo),
                     Some(QueryState::InProgress { .. }) => unreachable!(),
@@ -554,7 +554,7 @@ where
         // key. If anybody has installed themselves in our "waiting"
         // list, notify them that the value is available.
         let waiting = {
-            let mut write = self.map.write();
+            let mut write = self.map.write(); // thread 19, 18, 15, 13
             match write.insert(key.clone(), QueryState::Memoized(memo)) {
                 Some(QueryState::InProgress { id, waiting }) => {
                     assert_eq!(id, runtime.id());

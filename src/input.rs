@@ -80,7 +80,7 @@ where
         // need to read from this input. Therefore, we wait to acquire
         // the lock on `map` until we also hold the global query write
         // lock.
-        db.salsa_runtime().with_incremented_revision(|next_revision| {
+        db.salsa_runtime().with_incremented_revision(|next_revision| { // 1
             let mut map = self.map.write();
 
             db.salsa_event(|| Event {
