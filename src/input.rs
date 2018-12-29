@@ -207,7 +207,7 @@ where
     DB: Database,
 {
     fn set(&self, db: &DB, key: &Q::Key, descriptor: &DB::QueryDescriptor, value: Q::Value) {
-        log::debug!("{:?}({:?}) = {:?}", Q::default(), key, value);
+        log::debug!("{:?}({:?}) = {:?}", Q::default(), key, "<value>");
 
         self.set_common(db, key, descriptor, value, IsConstant(false))
     }
@@ -219,7 +219,7 @@ where
         descriptor: &DB::QueryDescriptor,
         value: Q::Value,
     ) {
-        log::debug!("{:?}({:?}) = {:?}", Q::default(), key, value);
+        log::debug!("{:?}({:?}) = {:?}", Q::default(), key, "<value>");
 
         self.set_common(db, key, descriptor, value, IsConstant(true))
     }

@@ -174,6 +174,19 @@ where
     inputs: MemoInputs<DB>,
 }
 
+impl<DB: Database, Q: QueryFunction<DB>> std::fmt::Debug for Memo<DB, Q> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = format!("{:?}", self.value);
+        let value = &value[..20.min(value.len())];
+        fmt.debug_struct("Memo")
+            .field("value", &value)
+            .field("verified_at", &self.verified_at)
+            .field("changed_at", &self.changed_at)
+            .field("inputs", &self.inputs)
+            .finish()
+    }
+}
+
 /// An insertion-order-preserving set of queries. Used to track the
 /// inputs accessed during query execution.
 pub(crate) enum MemoInputs<DB: Database> {
@@ -476,6 +489,12 @@ where
                         key,
                         value.changed_at
                     );
+                    info!(
+                        "{:?}({:?}): memo {:?}",
+                        Q::default(),
+                        key,
+                        memo,
+                    );
 
                     return ProbeState::UpToDate(Ok(value));
                 }
@@ -649,6 +668,14 @@ where
         descriptor: &DB::QueryDescriptor,
     ) -> Result<Q::Value, CycleDetected> {
         let StampedValue { value, changed_at } = self.read(db, key, &descriptor)?;
+        if changed_at.is_constant {
+            log::error!("constant value {:?}", value);
+            panic!("constant value: {:?}", value);
+        }
+        let value_d = format!("{:?}", value);
+        let value_d = &value_d[..20.min(value_d.len())];
+
+        log::debug!("{:?}({:?})::try_fetch {:?} at {:?}", Q::default(), key, value_d, changed_at);
 
         db.salsa_runtime().report_query_read(descriptor, changed_at);
 
