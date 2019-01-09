@@ -480,7 +480,8 @@ where
                             },
                         });
 
-                        let value = rx.recv().unwrap();
+                        // FIXME: not neccessary cancellation
+                        let value = rx.recv().unwrap_or_else(|_| crate::Canceled::throw());
                         ProbeState::UpToDate(Ok(value))
                     }
 
@@ -731,7 +732,8 @@ where
                         // can complete.
                         std::mem::drop(map);
 
-                        let value = rx.recv().unwrap();
+                        // FIXME: not neccessary cancellation
+                        let value = rx.recv().unwrap_or_else(|_| crate::Canceled::throw());
                         return value.changed_at.changed_since(revision);
                     }
 

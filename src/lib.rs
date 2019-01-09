@@ -30,6 +30,14 @@ use std::hash::Hash;
 pub use crate::runtime::Runtime;
 pub use crate::runtime::RuntimeId;
 
+pub struct Canceled;
+
+impl Canceled {
+    fn throw() -> ! {
+        std::panic::resume_unwind(Box::new(crate::Canceled))
+    }
+}
+
 /// The base trait which your "query context" must implement. Gives
 /// access to the salsa runtime, which you must embed into your query
 /// context (along with whatever other state you may require).

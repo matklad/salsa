@@ -167,6 +167,12 @@ where
         }
     }
 
+    pub fn unwind_if_current_revision_is_canceled(&self) {
+        if self.pending_revision() > self.current_revision() {
+            crate::Canceled::throw()
+        }
+    }
+
     /// Check if the current revision is canceled. If this method ever
     /// returns true, the currently executing query is also marked as
     /// having an *untracked read* -- this means that, in the next
