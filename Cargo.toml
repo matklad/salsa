@@ -24,3 +24,7 @@ env_logger = "0.5.13"
 rand = "0.5.5"
 
 [workspace]
+
+[patch.'crates-io']
+parking_lot = { git = "https://github.com/Amanieu/parking_lot" }
+lock_api = { git = "https://github.com/Amanieu/parking_lot" }

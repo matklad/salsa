@@ -13,7 +13,7 @@ use crate::runtime::StampedValue;
 use crate::{Database, DiscardIf, DiscardWhat, Event, EventKind, SweepStrategy};
 use log::{debug, info};
 use parking_lot::Mutex;
-use parking_lot::RwLock;
+use parking_lot::{RwLock, RwLockUpgradableReadGuard};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use std::marker::PhantomData;
@@ -321,14 +321,15 @@ where
         // can sometimes encounter deadlocks.
         let mut old_memo = match self.probe(
             db,
-            self.map.write(),
+            self.map.upgradable_read(),
             runtime,
             revision_now,
             database_key,
             key,
         ) {
             ProbeState::UpToDate(v) => return v,
-            ProbeState::StaleOrAbsent(mut map) => {
+            ProbeState::StaleOrAbsent(map) => {
+                let mut map = RwLockUpgradableReadGuard::upgrade(map);
                 match map.insert(key.clone(), QueryState::in_progress(runtime.id())) {
                     Some(QueryState::Memoized(old_memo)) => Some(old_memo),
                     Some(QueryState::InProgress { .. }) => unreachable!(),
@@ -947,7 +948,7 @@ where
                 debug!("sweep({:?}): clearing the table", Q::default());
                 map_write.clear();
                 return;
-            },
+            }
             (DiscardIf::Never, _) | (_, DiscardWhat::Nothing) => return,
             _ => {}
         }
