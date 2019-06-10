@@ -185,7 +185,7 @@ where
     verified_at: Revision,
 
     /// Last revision when the memoized value was observed to change.
-    changed_at: Revision,
+    changed_at: ChangedAt,
 
     /// The inputs that went into our query, if we are tracking them.
     inputs: MemoInputs<DB>,
@@ -399,8 +399,8 @@ where
                         old_memo.changed_at,
                     );
 
-                    assert!(old_memo.changed_at <= result.changed_at.revision);
-                    result.changed_at.revision = old_memo.changed_at;
+                    assert!(old_memo.changed_at.revision <= result.changed_at.revision);
+                    result.changed_at = old_memo.changed_at;
                 }
             }
         }
@@ -447,7 +447,7 @@ where
         };
         panic_guard.memo = Some(Memo {
             value,
-            changed_at: result.changed_at.revision,
+            changed_at: result.changed_at,
             verified_at: revision_now,
             inputs,
         });
@@ -783,10 +783,10 @@ where
                 "maybe_changed_since({:?}({:?}): {:?} since up-to-date memo that changed at {:?}",
                 Q::default(),
                 key,
-                memo.changed_at > revision,
+                memo.changed_at.revision > revision,
                 memo.changed_at,
             );
-            return memo.changed_at > revision;
+            return memo.changed_at.revision > revision;
         }
 
         let inputs = match &memo.inputs {
@@ -1033,7 +1033,7 @@ where
             self.inputs,
         );
 
-        let is_constant = match &mut self.inputs {
+        match &mut self.inputs {
             // We can't validate values that had untracked inputs; just have to
             // re-execute.
             MemoInputs::Untracked { .. } => {
@@ -1041,7 +1041,7 @@ where
             }
 
             // Constant: no changed input
-            MemoInputs::Constant => true,
+            MemoInputs::Constant => (),
 
             // Check whether any of our inputs changed since the
             // **last point where we were verified** (not since we
@@ -1068,16 +1068,13 @@ where
                     return None;
                 }
 
-                false
+                ()
             }
         };
 
         self.verified_at = revision_now;
         Some(StampedValue {
-            changed_at: ChangedAt {
-                is_constant,
-                revision: self.changed_at,
-            },
+            changed_at: self.changed_at,
             value: value.clone(),
         })
     }
@@ -1092,16 +1089,8 @@ where
         );
 
         if self.verified_at == revision_now {
-            let is_constant = match self.inputs {
-                MemoInputs::Constant => true,
-                _ => false,
-            };
-
             return Some(StampedValue {
-                changed_at: ChangedAt {
-                    is_constant,
-                    revision: self.changed_at,
-                },
+                changed_at: self.changed_at,
                 value: value.clone(),
             });
         }
