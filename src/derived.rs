@@ -9,6 +9,7 @@ use crate::plumbing::QueryStorageMassOps;
 use crate::plumbing::QueryStorageOps;
 use crate::runtime::StampedValue;
 use crate::{CycleError, Database, SweepStrategy};
+use crate::UsRwLock;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use std::marker::PhantomData;
@@ -36,18 +37,8 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     lru_list: Lru<Slot<DB, Q, MP>>,
-    slot_map: RwLock<FxHashMap<Q::Key, Arc<Slot<DB, Q, MP>>>>,
+    slot_map: UsRwLock<FxHashMap<Q::Key, Arc<Slot<DB, Q, MP>>>>,
     policy: PhantomData<MP>,
-}
-
-impl<DB, Q, MP> std::panic::RefUnwindSafe for DerivedStorage<DB, Q, MP>
-where
-    Q: QueryFunction<DB>,
-    DB: Database + HasQueryGroup<Q::Group>,
-    MP: MemoizationPolicy<DB, Q>,
-    Q::Key: std::panic::RefUnwindSafe,
-    Q::Value: std::panic::RefUnwindSafe,
-{
 }
 
 pub trait MemoizationPolicy<DB, Q>: Send + Sync + 'static
@@ -99,7 +90,7 @@ where
 {
     fn default() -> Self {
         DerivedStorage {
-            slot_map: RwLock::new(FxHashMap::default()),
+            slot_map: UsRwLock(RwLock::new(FxHashMap::default())),
             lru_list: Default::default(),
             policy: PhantomData,
         }

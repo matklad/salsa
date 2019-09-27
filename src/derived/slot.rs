@@ -14,7 +14,7 @@ use crate::runtime::FxIndexSet;
 use crate::runtime::Runtime;
 use crate::runtime::RuntimeId;
 use crate::runtime::StampedValue;
-use crate::{CycleError, Database, DiscardIf, DiscardWhat, Event, EventKind, SweepStrategy};
+use crate::{CycleError, Database, DiscardIf, DiscardWhat, Event, EventKind, SweepStrategy}; use crate::UsRwLock;
 use log::{debug, info};
 use parking_lot::Mutex;
 use parking_lot::RwLock;
@@ -31,7 +31,7 @@ where
     MP: MemoizationPolicy<DB, Q>,
 {
     key: Q::Key,
-    state: RwLock<QueryState<DB, Q>>,
+    state: UsRwLock<QueryState<DB, Q>>,
     policy: PhantomData<MP>,
     lru_index: LruIndex,
 }
@@ -40,6 +40,15 @@ where
 struct WaitResult<V, K> {
     value: StampedValue<V>,
     cycle: Vec<K>,
+}
+
+struct UsSender<T>(Sender<T>);
+impl<T> std::panic::RefUnwindSafe for UsSender<T> {}
+impl<T> std::ops::Deref for UsSender<T> {
+    type Target = Sender<T>;
+    fn deref(&self) -> &Sender<T> {
+        &self.0
+    }
 }
 
 /// Defines the "current state" of query's memoized results.
@@ -55,7 +64,7 @@ where
     /// indeeds a cycle.
     InProgress {
         id: RuntimeId,
-        waiting: Mutex<SmallVec<[Sender<WaitResult<Q::Value, DB::DatabaseKey>>; 2]>>,
+        waiting: UsRwLock<SmallVec<[UsSender<WaitResult<Q::Value, DB::DatabaseKey>>; 2]>>,
     },
 
     /// We have computed the query already, and here is the result.
@@ -115,7 +124,7 @@ where
     pub(super) fn new(key: Q::Key) -> Self {
         Self {
             key,
-            state: RwLock::new(QueryState::NotComputed),
+            state: UsRwLock(RwLock::new(QueryState::NotComputed)),
             lru_index: LruIndex::default(),
             policy: PhantomData,
         }
@@ -555,7 +564,7 @@ where
         db: &DB,
         runtime: &Runtime<DB>,
         other_id: RuntimeId,
-        waiting: &Mutex<SmallVec<[Sender<WaitResult<Q::Value, DB::DatabaseKey>>; 2]>>,
+        waiting: &UsRwLock<SmallVec<[UsSender<WaitResult<Q::Value, DB::DatabaseKey>>; 2]>>,
     ) -> Result<Receiver<WaitResult<Q::Value, DB::DatabaseKey>>, CycleDetected> {
         let id = runtime.id();
         if other_id == id {
@@ -572,7 +581,7 @@ where
 
             // The reader of this will have to acquire map
             // lock, we don't need any particular ordering.
-            waiting.lock().push(tx);
+            waiting.write().push(UsSender(tx));
 
             Ok(rx)
         }
@@ -672,7 +681,7 @@ where
                     // If anybody has installed themselves in our "waiting"
                     // list, notify them that the value is available.
                     Some((new_value, ref cycle)) => {
-                        for tx in waiting.into_inner() {
+                        for tx in waiting.0.into_inner() {
                             tx.send(WaitResult {
                                 value: new_value.clone(),
                                 cycle: cycle.clone(),

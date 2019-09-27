@@ -7,6 +7,15 @@
 //! re-execute the derived queries and it will try to re-use results
 //! from previous invocations as appropriate.
 
+#[derive(Default, Debug)]
+struct UsRwLock<T>(parking_lot::RwLock<T>);
+impl<T: std::panic::RefUnwindSafe> std::panic::RefUnwindSafe for UsRwLock<T> {}
+impl<T> std::ops::Deref for UsRwLock<T> {
+    type Target = parking_lot::RwLock<T>;
+    fn deref(&self) -> &parking_lot::RwLock<T> { &self.0 }
+}
+unsafe impl<T> Send for UsRwLock<T> {}
+unsafe impl<T> Sync for UsRwLock<T> {}
 mod dependency;
 mod derived;
 mod doctest;

@@ -1,3 +1,4 @@
+use crate::UsRwLock;
 use crate::debug::TableEntry;
 use crate::dependency::DatabaseSlot;
 use crate::durability::Durability;
@@ -26,7 +27,7 @@ where
     Q: Query<DB>,
     DB: Database,
 {
-    slots: RwLock<FxHashMap<Q::Key, Arc<Slot<DB, Q>>>>,
+    slots: UsRwLock<FxHashMap<Q::Key, Arc<Slot<DB, Q>>>>,
 }
 
 struct Slot<DB, Q>
@@ -35,16 +36,7 @@ where
     DB: Database,
 {
     key: Q::Key,
-    stamped_value: RwLock<StampedValue<Q::Value>>,
-}
-
-impl<DB, Q> std::panic::RefUnwindSafe for InputStorage<DB, Q>
-where
-    Q: Query<DB>,
-    DB: Database,
-    Q::Key: std::panic::RefUnwindSafe,
-    Q::Value: std::panic::RefUnwindSafe,
-{
+    stamped_value: UsRwLock<StampedValue<Q::Value>>,
 }
 
 impl<DB, Q> Default for InputStorage<DB, Q>
@@ -189,7 +181,7 @@ where
                 Entry::Vacant(entry) => {
                     entry.insert(Arc::new(Slot {
                         key: key.clone(),
-                        stamped_value: RwLock::new(stamped_value),
+                        stamped_value: UsRwLock(RwLock::new(stamped_value)),
                     }));
                 }
             }

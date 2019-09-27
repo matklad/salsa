@@ -19,7 +19,7 @@ pub(crate) struct Dependency<DB: Database> {
     slot: Arc<dyn DatabaseSlot<DB> + Send + Sync>,
     phantom: std::marker::PhantomData<Arc<DB::DatabaseData>>,
 }
-
+impl<DB: Database> std::panic::RefUnwindSafe for Dependency<DB> {}
 impl<DB: Database> Dependency<DB> {
     pub(crate) fn new(slot: Arc<dyn DatabaseSlot<DB> + '_>) -> Self {
         // Unsafety note: It is safe to 'pretend' the trait object is

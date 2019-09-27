@@ -16,6 +16,7 @@ use std::convert::From;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
+use crate::UsRwLock;
 
 const INTERN_DURABILITY: Durability = Durability::HIGH;
 
@@ -27,7 +28,7 @@ where
     Q::Value: InternKey,
     DB: Database,
 {
-    tables: RwLock<InternTables<Q::Key>>,
+    tables: UsRwLock<InternTables<Q::Key>>,
 }
 
 /// Storage for the looking up interned things.
@@ -118,16 +119,6 @@ struct Slot<K> {
     accessed_at: AtomicCell<Option<Revision>>,
 }
 
-impl<DB, Q> std::panic::RefUnwindSafe for InternedStorage<DB, Q>
-where
-    Q: Query<DB>,
-    DB: Database,
-    Q::Key: std::panic::RefUnwindSafe,
-    Q::Value: InternKey,
-    Q::Value: std::panic::RefUnwindSafe,
-{
-}
-
 impl<DB, Q> Default for InternedStorage<DB, Q>
 where
     Q: Query<DB>,
@@ -137,7 +128,7 @@ where
 {
     fn default() -> Self {
         InternedStorage {
-            tables: RwLock::new(InternTables::default()),
+            tables: UsRwLock(RwLock::new(InternTables::default())),
         }
     }
 }

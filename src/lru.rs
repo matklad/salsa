@@ -1,4 +1,4 @@
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use rand::rngs::SmallRng;
 use rand::Rng;
 use rand::SeedableRng;
@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-
+use crate::UsRwLock;
 mod test;
 
 /// A simple and approximate concurrent lru list.
@@ -25,7 +25,7 @@ where
     Node: LruNode,
 {
     green_zone: AtomicUsize,
-    data: Mutex<LruData<Node>>,
+    data: UsRwLock<LruData<Node>>,
 }
 
 #[derive(Debug)]
@@ -74,14 +74,14 @@ where
     fn with_seed(seed: &str) -> Self {
         Lru {
             green_zone: AtomicUsize::new(0),
-            data: Mutex::new(LruData::with_seed(seed)),
+            data: UsRwLock(RwLock::new(LruData::with_seed(seed))),
         }
     }
 
     /// Adjust the total number of nodes permitted to have a value at
     /// once.  If `len` is zero, this disables LRU caching completely.
     pub fn set_lru_capacity(&self, len: usize) {
-        let mut data = self.data.lock();
+        let mut data = self.data.write();
 
         // We require each zone to have at least 1 slot. Therefore,
         // the length cannot be just 1 or 2.
@@ -129,7 +129,7 @@ where
             return None;
         }
 
-        self.data.lock().record_use(node)
+        self.data.write().record_use(node)
     }
 }
 
